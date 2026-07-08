@@ -2,54 +2,37 @@
 
 A machine learning pipeline that classifies cardiac rhythm as **regular** or **irregular** using photoplethysmography (PPG) waveform data from the **MIMIC-III Waveform Database Matched Subset**. The system downloads PPG signals, performs quality control, extracts inter-beat intervals (IBIs), builds a labeled dataset using the coefficient of variation (CV) of IBI as a regularity proxy, trains a 1D convolutional neural network (CNN), and serves predictions through an interactive Streamlit web application.
 
----
-
-## Pipeline Overview
-
-The project is organized as a sequential 7-step pipeline. Each step has its own script and can be run independently once its prerequisites are met.
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  1. fetch_mimic_pleth.py    Download PPG signals from   │
-│                            MIMIC-III Waveform Database  │
-└───────────────────────┬─────────────────────────────────┘
-                        ▼
-┌─────────────────────────────────────────────────────────┐
-│  2. qc_peaks.py           Visual quality control with   │
-│                            peak detection plots         │
-└───────────────────────┬─────────────────────────────────┘
-                        ▼
-┌─────────────────────────────────────────────────────────┐
-│  3. qc_summary.py         Automated QC summary —        │
-│                            generates keep_list.json     │
-└───────────────────────┬─────────────────────────────────┘
-                        ▼
-┌─────────────────────────────────────────────────────────┐
-│  4. compute_ibi.py        Full-record peak detection →  │
-│                            inter-beat intervals         │
-└───────────────────────┬─────────────────────────────────┘
-                        ▼
-┌─────────────────────────────────────────────────────────┐
-│  5. build_dataset.py      Sliding-window dataset with   │
-│                            CV-based labels              │
-└───────────────────────┬─────────────────────────────────┘
-                        ▼
-┌─────────────────────────────────────────────────────────┐
-│  6. train_cnn.py          Patient-aware split → train   │
-│                            1D CNN classifier            │
-└───────────────────────┬─────────────────────────────────┘
-                        ▼
-┌─────────────────────────────────────────────────────────┐
-│  7. app.py               Streamlit GUI for interactive  │
-│                           rhythm classification         │
-└─────────────────────────────────────────────────────────┘
-```
+**🌐 Live Demo:** [https://ppg-based-rhythm-recognition-model.streamlit.app](https://ppg-based-rhythm-recognition-model.streamlit.app)
 
 ---
 
-## Quick Start (Run the GUI with Demo Data)
+## Table of Contents
 
-The repository includes pre-processed demo data so you can launch the classifier immediately — no downloads required.
+- [Quick Start](#quick-start)
+- [Installation](#installation)
+- [Running the Application](#running-the-application)
+- [Full Pipeline (End-to-End)](#full-pipeline-end-to-end)
+- [Deployment](#deployment)
+- [Project Structure](#project-structure)
+- [Dataset & Labeling Strategy](#dataset--labeling-strategy)
+- [Model Performance](#model-performance)
+- [Technical Details](#technical-details)
+- [Notes](#notes)
+- [License](#license)
+- [Citation](#citation)
+- [Contact](#contact)
+
+---
+
+## Quick Start
+
+Get the app running in 3 simple steps using the pre-processed demo data.
+
+### Prerequisites
+
+- **Python 3.9 – 3.12** (TensorFlow 2.15 is required and doesn't support Python 3.13+)
+- pip package manager
+- Git (for cloning)
 
 ### 1. Clone the Repository
 
@@ -60,33 +43,158 @@ cd ppg-based-rhythm-recognition-model
 
 ### 2. Install Dependencies
 
-**⚠️ Important:** TensorFlow requires **Python 3.9 – 3.12**. If your default `python` is 3.13 or 3.14, use the full path to Python 3.12.
-
+**Option A: Using default Python (if version is 3.9–3.12)**
 ```bash
-# Option A: Using default Python (if 3.9–3.12)
 pip install -r requirements.txt
+```
 
-# Option B: Using Python 3.12 explicitly (recommended on Windows with Python 3.14)
+**Option B: Using Python 3.12 explicitly (recommended if you have Python 3.13 or 3.14)**
+
+**On Windows:**
+```bash
 C:\Users\<YOUR_USERNAME>\AppData\Local\Programs\Python\Python312\python.exe -m pip install -r requirements.txt
+```
+
+**On macOS/Linux:**
+```bash
+python3.12 -m pip install -r requirements.txt
+```
+
+**Option C: Create a virtual environment (recommended)**
+```bash
+# Create virtual environment with Python 3.11 or 3.12
+python -m venv venv
+
+# Activate virtual environment
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
 ```
 
 ### 3. Launch the App
 
 ```bash
-# If using Option A above
+# If using default Python
 streamlit run app.py
 
-# If using Option B above
+# If using Python 3.12 explicitly
 C:\Users\<YOUR_USERNAME>\AppData\Local\Programs\Python\Python312\python.exe -m streamlit run app.py
+
+# If using virtual environment
+streamlit run app.py
 ```
 
 Open **http://localhost:8501** in your browser. Click **"🎲 Pick another random beat"** to classify different 10-beat windows.
 
 ---
 
+## Installation
+
+### Detailed Dependency Information
+
+The `requirements.txt` file includes:
+
+```
+numpy>=1.24
+scipy>=1.11
+matplotlib>=3.7
+wfdb>=4.1
+scikit-learn>=1.3
+tensorflow-cpu>=2.15
+streamlit>=1.30
+```
+
+**Package Descriptions:**
+- **numpy** — Array operations and signal processing
+- **scipy** — Signal filtering and statistical functions
+- **matplotlib** — Visualization (QC plots)
+- **wfdb** — PhysioNet database access for MIMIC-III data
+- **scikit-learn** — Data splitting and evaluation metrics
+- **tensorflow-cpu** — Deep learning framework (CPU-only version, lighter weight)
+- **streamlit** — Web application framework for the GUI
+
+### Troubleshooting Installation Issues
+
+**Issue: "Python 3.13 or 3.14 detected"**
+```bash
+# Solution: Install Python 3.11 or 3.12 from python.org
+# Then use the explicit path as shown in Option B above
+```
+
+**Issue: "pip not found"**
+```bash
+# On Windows, try:
+python -m pip install --upgrade pip
+
+# On macOS/Linux, try:
+python3 -m pip install --upgrade pip
+```
+
+**Issue: "Permission denied"**
+```bash
+# Add --user flag or use virtual environment:
+pip install --user -r requirements.txt
+```
+
+**Issue: "TensorFlow installation fails"**
+```bash
+# Ensure you're using Python 3.9-3.12
+# Try installing tensorflow-cpu specifically:
+pip install tensorflow-cpu==2.15.0
+```
+
+---
+
+## Running the Application
+
+### Local Development
+
+```bash
+# Activate virtual environment first (if using one)
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+
+# Run the app
+streamlit run app.py
+```
+
+The app will:
+1. Load the trained model (`ppg_regularity_cnn.keras`)
+2. Load normalization statistics (`normalization_stats.npz`)
+3. Load demo data from `ibi_data/` and `mimic_pleth_records/`
+4. Display a random 10-beat window with classification results
+
+### Using the GUI
+
+1. **View Classification Results:**
+   - The app automatically picks a random beat window
+   - Shows Regular/Irregular classification with confidence
+   - Displays probability of irregularity
+
+2. **Explore More Samples:**
+   - Click **"🎲 Pick another random beat"** to see different windows
+   - Each click loads a new random sample from the demo data
+
+3. **Understanding the Output:**
+   - **PPG Waveform:** Raw photoplethysmography signal segment
+   - **Classification:** Regular or Irregular rhythm
+   - **Confidence:** Model's confidence in the prediction
+   - **P(irregular):** Probability of irregular rhythm (0-1)
+   - **IBI Window:** 10 consecutive inter-beat intervals in seconds
+   - **CV:** Coefficient of variation (measure of rhythm regularity)
+   - **Mean Rate:** Average heart rate in BPM
+
+---
+
 ## Full Pipeline (End-to-End)
 
-Run the steps below **in order** to reproduce the entire pipeline from raw data to trained model.
+Run these steps **in order** to reproduce the entire pipeline from raw MIMIC-III data to trained model.
 
 ### Step 1: Download PPG (PLETH) Waveforms from MIMIC-III
 
@@ -94,10 +202,15 @@ Run the steps below **in order** to reproduce the entire pipeline from raw data 
 python fetch_mimic_pleth.py
 ```
 
-- Searches up to 3,000 master records across the MIMIC-III Waveform Database Matched Subset.
-- Saves up to 40 diverse PLETH segments (max 2 per patient) to `mimic_pleth_records/`.
-- Each record is saved as `<name>.npy` (signal array) and `<name>.json` (metadata: sample rate, duration).
-- **No credentialing required** — the MIMIC-III Waveform Database Matched Subset is openly accessible with proper citation.
+**What it does:**
+- Searches up to 3,000 master records across the MIMIC-III Waveform Database Matched Subset
+- Saves up to 40 diverse PLETH segments (max 2 per patient) to `mimic_pleth_records/`
+- Each record is saved as `<name>.npy` (signal array) and `<name>.json` (metadata: sample rate, duration)
+- **No credentialing required** — the MIMIC-III Waveform Database Matched Subset is openly accessible with proper citation
+
+**Output:** `mimic_pleth_records/*.npy` and `mimic_pleth_records/*.json`
+
+---
 
 ### Step 2: Visual Quality Control
 
@@ -105,10 +218,17 @@ python fetch_mimic_pleth.py
 python qc_peaks.py
 ```
 
-- Applies a 0.5–10 Hz bandpass filter to the first 30 seconds of each record.
-- Runs peak detection and generates a 2-panel plot (raw signal + filtered signal with detected peaks).
-- Flags records with >5% clipping or non-physiological heart rate (<40 or >180 bpm).
-- Outputs: `qc_plots/<name>_qc.png` — review these to decide which records pass QC.
+**What it does:**
+- Applies a 0.5–10 Hz bandpass filter to the first 30 seconds of each record
+- Runs peak detection and generates a 2-panel plot (raw signal + filtered signal with detected peaks)
+- Flags records with >5% clipping or non-physiological heart rate (<40 or >180 bpm)
+- Outputs: `qc_plots/<name>_qc.png` — review these to decide which records pass QC
+
+**Output:** `qc_plots/*.png` (visual QC plots for manual review)
+
+**Review:** Check the generated plots and manually decide which records have good signal quality.
+
+---
 
 ### Step 3: Automated QC Summary
 
@@ -116,9 +236,14 @@ python qc_peaks.py
 python qc_summary.py
 ```
 
-- Repeats the QC checks programmatically (no plots).
-- Prints a KEEP / REJECT tally.
-- Writes accepted record names to `keep_list.json`, consumed by all downstream steps.
+**What it does:**
+- Repeats the QC checks programmatically (no plots)
+- Prints a KEEP / REJECT tally
+- Writes accepted record names to `keep_list.json`, consumed by all downstream steps
+
+**Output:** `keep_list.json` (list of QC-passed record names)
+
+---
 
 ### Step 4: Compute Inter-Beat Intervals (IBI)
 
@@ -126,14 +251,19 @@ python qc_summary.py
 python compute_ibi.py
 ```
 
-- Processes the **entire** signal in 1-hour chunks to manage memory efficiently.
-- Applies bandpass filtering → peak detection → computes IBI = `diff(peak_timestamps)`.
-- Flags physiologically impossible intervals (<0.33s or >2.0s, i.e., 30–180 bpm) via `ibi_valid_mask`.
+**What it does:**
+- Processes the **entire** signal in 1-hour chunks to manage memory efficiently
+- Applies bandpass filtering → peak detection → computes IBI = `diff(peak_timestamps)`
+- Flags physiologically impossible intervals (<0.33s or >2.0s, i.e., 30–180 bpm) via `ibi_valid_mask`
 - Outputs per record to `ibi_data/<name>_ibi.npz` containing:
   - `peak_times` — beat timestamps in seconds
   - `ibi` — inter-beat intervals in seconds
   - `ibi_valid_mask` — boolean array marking physiologically valid intervals
   - `fs`, `n_samples`, `duration_sec`
+
+**Output:** `ibi_data/*_ibi.npz` files
+
+---
 
 ### Step 5: Build Labeled Dataset
 
@@ -141,15 +271,23 @@ python compute_ibi.py
 python build_dataset.py
 ```
 
-- Slides a window of 10 consecutive, fully-valid IBIs across each record (step = 5, 50% overlap).
-- Computes **CV = σ(IBI) / μ(IBI)** for each window.
+**What it does:**
+- Slides a window of 10 consecutive, fully-valid IBIs across each record (step = 5, 50% overlap)
+- Computes **CV = σ(IBI) / μ(IBI)** for each window
 - Assigns labels:
   - **CV ≤ 0.08** → Regular (0)
   - **CV > 0.08** → Irregular (1)
-- Prints the CV distribution percentile table so you can verify/adjust the threshold.
-- Output: `dataset/ibi_windows_dataset.npz` (X, y, record_ids).
+- Prints the CV distribution percentile table so you can verify/adjust the threshold
+- Output: `dataset/ibi_windows_dataset.npz` (X, y, record_ids)
 
 > **Why CV?** MIMIC waveform records lack per-beat rhythm labels. The coefficient of variation of IBI is a standard, well-established proxy for rhythm irregularity widely used in atrial fibrillation screening literature.
+
+**Output:** `dataset/ibi_windows_dataset.npz`
+
+**Adjusting the Threshold:**
+After running, check the printed CV distribution percentile table. If you want to adjust the regular/irregular threshold, edit the `CV_THRESHOLD` variable in `build_dataset.py` (default is 0.08).
+
+---
 
 ### Step 6: Train the 1D CNN
 
@@ -157,7 +295,8 @@ python build_dataset.py
 python train_cnn.py
 ```
 
-- **Patient-aware split:** 70% train / 15% validation / 15% test using `GroupShuffleSplit` — prevents data leakage by ensuring windows from the same patient stay in the same split.
+**What it does:**
+- **Patient-aware split:** 70% train / 15% validation / 15% test using `GroupShuffleSplit` — prevents data leakage by ensuring windows from the same patient stay in the same split
 - **Model architecture:**
 
 ```
@@ -180,6 +319,16 @@ Input: (batch, 10, 1) — 10 consecutive z-score-normalized IBI values
   - `ppg_regularity_cnn.keras` — trained model
   - `normalization_stats.npz` — z-score mean and std (required by the GUI)
 
+**Training Output:**
+- Progress bars for each epoch
+- Validation accuracy and AUC metrics
+- Best model saved automatically
+- Training history plots (if enabled)
+
+**Output:** `ppg_regularity_cnn.keras` and `normalization_stats.npz`
+
+---
+
 ### Step 7: Launch the Interactive Streamlit GUI
 
 ```bash
@@ -194,6 +343,109 @@ The GUI loads the trained model, randomly samples a 10-beat window from the held
 - IBI values for the window
 - Coefficient of variation (CV)
 - Mean heart rate in BPM
+
+---
+
+## Deployment
+
+Deploy your app to the web so others can use it without installing anything.
+
+### Option 1: Streamlit Community Cloud (Recommended) ✅
+
+**Status:** Already deployed at [https://ppg-based-rhythm-recognition-model.streamlit.app](https://ppg-based-rhythm-recognition-model.streamlit.app)
+
+**To deploy a new version:**
+
+1. **Push changes to GitHub:**
+   ```bash
+   git add .
+   git commit -m "Update app"
+   git push origin main
+   ```
+
+2. **Streamlit Cloud will auto-deploy:**
+   - Any push to the `main` branch triggers automatic redeployment
+   - Takes ~2-3 minutes to build and deploy
+   - Check deployment status at [https://streamlit.io/cloud](https://streamlit.io/cloud)
+
+3. **Configuration used:**
+   - **Repository:** `geethika-2807/ppg-based-rhythm-recognition-model`
+   - **Branch:** `main`
+   - **Main file:** `app.py`
+   - **Python version:** 3.11
+   - **URL:** https://ppg-based-rhythm-recognition-model.streamlit.app
+
+**How it works:**
+- The trained model and demo data are committed directly to the repository
+- Streamlit Cloud installs dependencies from `requirements.txt`
+- Runs `app.py` and keeps the app live while users are active
+- Spins down after 15 minutes of inactivity (saves resources)
+- Wakes up on next visit (cold start ~30 seconds)
+
+---
+
+### Option 2: Hugging Face Spaces
+
+**Alternative deployment option using Hugging Face Spaces:**
+
+1. **Create a new Space:**
+   - Go to [https://huggingface.co/spaces](https://huggingface.co/spaces)
+   - Click "Create new Space"
+   - Name: `ppg-rhythm`
+   - Select "Streamlit" as SDK
+   - Set Python version to 3.10
+
+2. **Push to Hugging Face:**
+   ```bash
+   # Add Hugging Face remote (if not already added)
+   git remote add hf https://huggingface.co/spaces/geethika-2807/ppg-rhythm
+   
+   # Push to Hugging Face
+   git add .
+   git commit -m "Deploy to HF Spaces"
+   git push hf main
+   ```
+
+3. **Your app will be available at:**
+   ```
+   https://geethika-2807-ppg-rhythm.hf.space
+   ```
+
+---
+
+### Option 3: Self-Hosted Deployment
+
+**Run on your own server or VPS:**
+
+1. **Install dependencies on server:**
+   ```bash
+   git clone https://github.com/geethika-2807/ppg-based-rhythm-recognition-model
+   cd ppg-based-rhythm-recognition-model
+   pip install -r requirements.txt
+   ```
+
+2. **Run with Streamlit:**
+   ```bash
+   streamlit run app.py --server.port 8501 --server.address 0.0.0.0
+   ```
+
+3. **Use a reverse proxy (nginx) for production:**
+   ```bash
+   # Install nginx
+   sudo apt install nginx
+   
+   # Configure nginx to proxy to Streamlit
+   # See Streamlit docs for production deployment
+   ```
+
+4. **Or use Docker:**
+   ```bash
+   # Build image
+   docker build -t ppg-rhythm-classifier .
+   
+   # Run container
+   docker run -p 8501:8501 ppg-rhythm-classifier
+   ```
 
 ---
 
@@ -227,46 +479,6 @@ ppg-based-rhythm-recognition-model/
 ├── qc_plots/                  # Generated by Step 2 (git-ignored)
 └── .venv/                     # Virtual environment (git-ignored)
 ```
-
----
-
-## Deployment — Streamlit Community Cloud (Free)
-
-Share the app with friends via a public URL — no installation required on their end.
-
-### Step 1: Push to GitHub
-
-```bash
-git add .
-git commit -m "Ready for deployment"
-git push origin main
-```
-
-### Step 2: Deploy on Streamlit Cloud
-
-1. Go to **[https://streamlit.io/cloud](https://streamlit.io/cloud)**
-2. Click **"Sign in with GitHub"** and authorize the application.
-3. Click **"New app"** and configure:
-
-| Field        | Value                                                |
-|--------------|------------------------------------------------------|
-| Repository   | `geethika-2807/ppg-based-rhythm-recognition-model`   |
-| Branch       | `main`                                               |
-| Main file    | `app.py`                                             |
-
-4. Click **"Deploy"**.
-
-### Step 3: Share the URL
-
-After deployment (~2 minutes), you'll receive a public URL:
-
-```
-https://ppg-based-rhythm-recognition-model.streamlit.app
-```
-
-Send this link to anyone — they can open it on any device with a browser and start classifying immediately.
-
-> **How it works:** The trained model and demo data are committed directly to the repository. Streamlit Cloud installs the dependencies from `requirements.txt`, runs `app.py`, and keeps the app live while users are active. It spins down after 15 minutes of inactivity and wakes up on the next visit (cold start ~30 seconds).
 
 ---
 
@@ -312,7 +524,11 @@ The 1D CNN is trained with a patient-aware train/validation/test split to preven
 
 ### Python Version Compatibility
 
-TensorFlow 2.15 supports Python 3.9–3.12. If you encounter installation errors on Python 3.13 or 3.14, use Python 3.12 explicitly as shown in the Quick Start section.
+**Required:** Python 3.9 – 3.12
+
+TensorFlow 2.15 supports Python 3.9–3.12. If you encounter installation errors on Python 3.13 or 3.14, use Python 3.11 or 3.12 explicitly as shown in the Installation section.
+
+**Recommended:** Python 3.11 or 3.12 for best compatibility
 
 ---
 
@@ -321,6 +537,8 @@ TensorFlow 2.15 supports Python 3.9–3.12. If you encounter installation errors
 - The demo data in `ibi_data/` and `mimic_pleth_records/` lets you run the GUI and Steps 4–5 without downloading from MIMIC-III. To run the full pipeline from scratch, delete these directories and start with `fetch_mimic_pleth.py`.
 - The `app.py` GUI reads from `ibi_data/` (IBI `.npz` files) and `mimic_pleth_records/` (raw PPG `.npy` files). Both directories must exist and contain matching files.
 - The CV threshold of 0.08 was chosen based on the distribution of IBI variability in the dataset. Adjust if needed for your specific use case.
+- The app is deployed on Streamlit Community Cloud and is freely accessible at https://ppg-based-rhythm-recognition-model.streamlit.app
+- No installation required for end users — just open the URL in a browser
 
 ---
 
@@ -346,3 +564,4 @@ If you use this project in your research, please cite:
 
 For questions or issues, please open an issue on GitHub or contact [geethika-2807](https://github.com/geethika-2807).
 
+**Live App:** [https://ppg-based-rhythm-recognition-model.streamlit.app](https://ppg-based-rhythm-recognition-model.streamlit.app)
