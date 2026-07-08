@@ -1,6 +1,6 @@
 # PPG-Based Cardiac Rhythm Regularity Classification
 
-A machine learning pipeline that classifies cardiac rhythm as **regular** or **irregular** using photoplethysmography (PPG) waveform data from the **MIMIC-III** clinical database. The system downloads PPG signals, performs quality control, extracts inter-beat intervals (IBIs), builds a labeled dataset using the coefficient of variation (CV) of IBI as a regularity proxy, trains a 1D convolutional neural network (CNN), and serves predictions through an interactive Streamlit web application.
+A machine learning pipeline that classifies cardiac rhythm as **regular** or **irregular** using photoplethysmography (PPG) waveform data from the **MIMIC-III Waveform Database Matched Subset**. The system downloads PPG signals, performs quality control, extracts inter-beat intervals (IBIs), builds a labeled dataset using the coefficient of variation (CV) of IBI as a regularity proxy, trains a 1D convolutional neural network (CNN), and serves predictions through an interactive Streamlit web application.
 
 ---
 
@@ -11,7 +11,7 @@ The project is organized as a sequential 7-step pipeline. Each step has its own 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │  1. fetch_mimic_pleth.py    Download PPG signals from   │
-│                            MIMIC-III database           │
+│                            MIMIC-III Waveform Database  │
 └───────────────────────┬─────────────────────────────────┘
                         ▼
 ┌─────────────────────────────────────────────────────────┐
@@ -94,9 +94,10 @@ Run the steps below **in order** to reproduce the entire pipeline from raw data 
 python fetch_mimic_pleth.py
 ```
 
-- Searches up to 3,000 master records across the MIMIC-III matched subset.
+- Searches up to 3,000 master records across the MIMIC-III Waveform Database Matched Subset.
 - Saves up to 40 diverse PLETH segments (max 2 per patient) to `mimic_pleth_records/`.
 - Each record is saved as `<name>.npy` (signal array) and `<name>.json` (metadata: sample rate, duration).
+- **No credentialing required** — the MIMIC-III Waveform Database Matched Subset is openly accessible with proper citation.
 
 ### Step 2: Visual Quality Control
 
@@ -273,6 +274,8 @@ Send this link to anyone — they can open it on any device with a browser and s
 
 **Source:** [MIMIC-III Waveform Database Matched Subset](https://physionet.org/content/mimic3wdb-matched/1.0/) (PhysioNet)
 
+**Access:** This dataset is openly accessible with proper citation. It should not be confused with the MIMIC-III Clinical Database, which requires PhysioNet credentialing. The waveform-only Matched Subset used in this project does not require login or credentialing.
+
 **Labeling (unsupervised / rule-based):**
 
 | CV of IBI | Classification |
@@ -284,22 +287,49 @@ The CV threshold (default 0.08) can be adjusted in `build_dataset.py` after insp
 
 ---
 
+## Model Performance
+
+The 1D CNN is trained with a patient-aware train/validation/test split to prevent data leakage. Performance metrics (accuracy, AUC) are printed during training. The model uses:
+
+- **Input:** 10 consecutive z-score-normalized IBI values
+- **Architecture:** Lightweight 1D CNN with batch normalization and dropout for regularization
+- **Training:** Early stopping on validation AUC with best weight restoration
+- **Output:** Binary classification (Regular vs Irregular) with probability score
+
+---
+
+## Technical Details
+
+### Dependencies
+
+- **numpy** ≥ 1.24 — Array operations and signal processing
+- **scipy** ≥ 1.11 — Signal filtering and statistical functions
+- **matplotlib** ≥ 3.7 — Visualization (QC plots)
+- **wfdb** ≥ 4.1 — PhysioNet database access
+- **scikit-learn** ≥ 1.3 — Data splitting and metrics
+- **tensorflow-cpu** ≥ 2.15 — Deep learning framework
+- **streamlit** ≥ 1.30 — Web application framework
+
+### Python Version Compatibility
+
+TensorFlow 2.15 supports Python 3.9–3.12. If you encounter installation errors on Python 3.13 or 3.14, use Python 3.12 explicitly as shown in the Quick Start section.
+
+---
+
 ## Notes
 
 - The demo data in `ibi_data/` and `mimic_pleth_records/` lets you run the GUI and Steps 4–5 without downloading from MIMIC-III. To run the full pipeline from scratch, delete these directories and start with `fetch_mimic_pleth.py`.
-- TensorFlow does **not** support Python 3.13 or 3.14. If you encounter installation errors, use Python 3.12 explicitly (see [Quick Start](#quick-start-run-the-gui-with-demo-data)).
 - The `app.py` GUI reads from `ibi_data/` (IBI `.npz` files) and `mimic_pleth_records/` (raw PPG `.npy` files). Both directories must exist and contain matching files.
+- The CV threshold of 0.08 was chosen based on the distribution of IBI variability in the dataset. Adjust if needed for your specific use case.
 
 ---
 
 ## License
 
-This project uses data from the **MIMIC-III Waveform Database Matched Subset**. Access to MIMIC data requires:
+This project uses the **MIMIC-III Waveform Database Matched Subset** (PhysioNet), which is openly accessible with proper citation. It should not be confused with the MIMIC-III Clinical Database, which requires PhysioNet credentialing.
 
-1. Completion of [PhysioNet credentialing](https://physionet.org/settings/credentialing/)
-2. Acceptance of the MIMIC-III Waveform Database Data Use Agreement
-
-This code is provided for **research and educational purposes only**. It is not a medical device and has not been clinically validated.
+- **Dataset:** [MIMIC-III Waveform Database Matched Subset](https://physionet.org/content/mimic3wdb-matched/1.0/) — Open Access with citation
+- **Code:** Provided for **research and educational purposes only**. Not a medical device; not clinically validated.
 
 ---
 
@@ -309,3 +339,10 @@ If you use this project in your research, please cite:
 
 - Johnson, A.E.W., et al. *MIMIC-III, a freely accessible critical care database.* Scientific Data (2016).
 - Goldberger, A.L., et al. *PhysioBank, PhysioToolkit, and PhysioNet: Components of a New Research Resource for Complex Physiologic Signals.* Circulation (2000).
+
+---
+
+## Contact
+
+For questions or issues, please open an issue on GitHub or contact [geethika-2807](https://github.com/geethika-2807).
+
